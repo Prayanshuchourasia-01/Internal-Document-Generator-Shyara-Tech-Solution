@@ -4,6 +4,9 @@ import dotenv from 'dotenv' ;
 import userRoute from './routes/userRoutes.js';
 import prisma from './src/config/prisma.js';
 import templateRoutes from './src/routes/templateRoutes.js';
+import documentRoutes from './src/routes/documentRoutes.js';
+
+
 
 dotenv.config();
 
@@ -21,6 +24,10 @@ app.get('/test-db', async (req, res) => {
         data: templates
     });
 });
+
+
+app.use('/documents', documentRoutes);
+
 
 
 app.use('/templates', templateRoutes);

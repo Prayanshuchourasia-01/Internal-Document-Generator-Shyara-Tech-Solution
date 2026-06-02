@@ -18,4 +18,15 @@ model Template {
   department String
   content    String
   createdAt  DateTime @default(now())
+
+  documents  Document[]
+}
+
+model Document {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  content    String
+  createdAt  DateTime @default(now())
+
+  template   Template @relation(fields: [templateId], references: [id])
 }
