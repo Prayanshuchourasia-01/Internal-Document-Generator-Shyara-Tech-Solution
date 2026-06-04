@@ -2,7 +2,8 @@ import express from 'express';
 import {
     generateDocument,
     getDocuments,
-    getDocumentById
+    getDocumentById,
+    generatePDF
 } from '../controllers/documentController.js';
 
 
@@ -15,6 +16,7 @@ router.get('/', getDocuments);
 
 router.get('/:id', getDocumentById);
 
+router.get('/:id/pdf', generatePDF);
 
 export default router;
 
