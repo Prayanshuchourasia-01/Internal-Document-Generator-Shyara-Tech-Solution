@@ -5,7 +5,7 @@ import userRoute from './routes/userRoutes.js';
 import prisma from './src/config/prisma.js';
 import templateRoutes from './src/routes/templateRoutes.js';
 import documentRoutes from './src/routes/documentRoutes.js';
-
+import departmentRoutes from './src/routes/departmentRoutes.js';
 
 
 dotenv.config();
@@ -31,7 +31,7 @@ app.use('/documents', documentRoutes);
 
 
 app.use('/templates', templateRoutes);
-
+app.use('/api/departments', departmentRoutes);
 
 // Routes
 app.use('/user',userRoute)
