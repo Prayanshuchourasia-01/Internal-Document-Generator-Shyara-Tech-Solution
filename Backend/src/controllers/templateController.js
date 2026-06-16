@@ -1,3 +1,5 @@
+import mammoth from "mammoth";
+import { extractPlaceholders } from "../utils/extractPlaceholders.js";
 import prisma from '../config/prisma.js';
 
 export const createTemplate = async (req, res) => {
@@ -104,4 +106,60 @@ export const deleteTemplate = async (req, res) => {
             message: error.message
         });
     }
+};
+
+export const uploadTemplate = async (req, res) => {
+try {
+    const { name, department } = req.body;
+
+    if (!name || !department) {
+        return res.status(400).json({
+            message: "Name and department are required"
+        });
+    }
+
+    if (!req.file) {
+        return res.status(400).json({
+            message: "DOCX file is required"
+        });
+    }
+
+    const result = await mammoth.extractRawText({
+        path: req.file.path
+    });
+
+    const content = result.value;
+
+    const placeholders =
+        extractPlaceholders(content);
+
+    const template =
+        await prisma.template.create({
+            data: {
+                name,
+                department,
+                content,
+                filePath: req.file.path,
+                placeholders: JSON.stringify(placeholders)
+            }
+        });
+
+    res.status(201).json({
+        success: true,
+        message: "Template uploaded successfully",
+        template,
+        placeholders
+    });
+
+} catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+        success: false,
+        message: error.message
+    });
+
+}
+
 };

@@ -1,7 +1,7 @@
 import { configDotenv } from 'dotenv';
 import express from 'express';
 import dotenv from 'dotenv' ; 
-import userRoute from './routes/userRoutes.js';
+import userRoute from './src/routes/userRoutes.js';
 import prisma from './src/config/prisma.js';
 import templateRoutes from './src/routes/templateRoutes.js';
 import documentRoutes from './src/routes/documentRoutes.js';
@@ -26,11 +26,11 @@ app.get('/test-db', async (req, res) => {
 });
 
 
-app.use('/documents', documentRoutes);
+app.use('/api/documents', documentRoutes);
 
 
 
-app.use('/templates', templateRoutes);
+app.use('/api/templates', templateRoutes);
 app.use('/api/departments', departmentRoutes);
 
 // Routes

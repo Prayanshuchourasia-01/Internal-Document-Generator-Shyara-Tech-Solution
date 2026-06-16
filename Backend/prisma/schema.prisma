@@ -4,7 +4,6 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,29 +14,30 @@ datasource db {
 }
 
 model Template {
-  id         Int      @id @default(autoincrement())
-  name       String
-  department String
-  content    String
-  createdAt  DateTime @default(now())
-
-  documents  Document[]
+  id           Int        @id @default(autoincrement())
+  name         String
+  department   String
+  content      String
+  filePath     String?
+  placeholders String?
+  createdAt    DateTime   @default(now())
+  documents    Document[]
 }
 
 model Document {
   id         Int      @id @default(autoincrement())
   templateId Int
   content    String
+  filePath   String?
+  metadata   String?
   createdAt  DateTime @default(now())
-
   template   Template @relation(fields: [templateId], references: [id])
 }
 
 model Department {
-  id        Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  name      String   @unique
+  name String @unique
 
   createdAt DateTime @default(now())
 }
-
