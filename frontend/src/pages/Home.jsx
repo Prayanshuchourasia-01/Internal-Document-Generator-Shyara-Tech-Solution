@@ -1,10 +1,22 @@
+import { useState, useEffect } from "react";
 import Breadcrumb from "../components/Breadcrumb";
 import { useNavigate } from "react-router-dom";
 
 function Home() {
+  const [documentCount, setDocumentCount] =
+  useState(0);
 
   const navigate = useNavigate();
+  useEffect(() => {
+  const history =
+    JSON.parse(
+      localStorage.getItem("history")
+    ) || [];
 
+  setDocumentCount(history.length);
+}, []);
+
+  
   return (
     <>
       <Breadcrumb />
@@ -37,7 +49,7 @@ function Home() {
           className="card"
           onClick={() => navigate("/history")}
         >
-          <h2>2</h2>
+          <h2>{documentCount}</h2>
           <p>Generated Documents</p>
         </div>
 
