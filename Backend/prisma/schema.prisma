@@ -1,37 +1,45 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
+provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+provider = "sqlite"
+url      = env("DATABASE_URL")
 }
 
 model Template {
   id           Int        @id @default(autoincrement())
   name         String
-  department   String
+  departmentId Int?
   content      String
   filePath     String?
   placeholders String?
   createdAt    DateTime   @default(now())
+
+  department   Department? @relation(fields: [departmentId], references: [id])
   documents    Document[]
 }
 
 model Document {
-  id         Int      @id @default(autoincrement())
-  templateId Int
-  content    String
-  filePath   String?
-  metadata   String?
-  createdAt  DateTime @default(now())
-  template   Template @relation(fields: [templateId], references: [id])
+  id                  Int       @id @default(autoincrement())
+  templateId          Int
+  documentName        String?
+  departmentName      String
+  departmentShortCode String
+  departmentId        Int
+  documentCode        String
+  referenceNumber     String    @unique
+  content             String
+  filePath            String?
+  metadata            String?
+  createdAt           DateTime  @default(now())
+
+  template            Template  @relation(fields: [templateId], references: [id])
+  department          Department @relation(fields: [departmentId], references: [id])
+
+  @@index([departmentShortCode])
+  @@index([createdAt])
+  @@index([documentCode])
 }
 
 model Department {
@@ -39,5 +47,21 @@ model Department {
 
   name String @unique
 
+  shortCode String @unique
+
   createdAt DateTime @default(now())
+
+  templates Template[]
+  documents Document[]
+}
+
+
+
+model ReferenceCounter {
+  id                  Int    @id @default(autoincrement())
+  departmentShortCode String
+  documentCode        String
+  currentValue        Int    @default(0)
+
+  @@unique([departmentShortCode, documentCode])
 }
