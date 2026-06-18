@@ -92,7 +92,7 @@ function Templates() {
         </div>
 
         <label className="btn">
-          Upload DOCX
+          Add DOCX
 
           <input
             type="file"
