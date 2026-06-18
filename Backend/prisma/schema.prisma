@@ -10,6 +10,7 @@ datasource db {
 model Template {
   id           Int        @id @default(autoincrement())
   name         String
+  templateCode String
   department   String
   content      String
   createdAt    DateTime   @default(now())

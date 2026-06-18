@@ -17,6 +17,7 @@ const resolveDepartment = async ({ departmentId, department }) => {
 const normalizeTemplate = (template) => ({
   id: template.id,
   name: template.name,
+  templateCode: template.templateCode,
   content: template.content,
   filePath: template.filePath,
   placeholders: template.placeholders ? JSON.parse(template.placeholders) : [],
@@ -135,14 +136,16 @@ export const deleteTemplate = async (req, res) => {
 
 export const uploadTemplate = async (req, res) => {
   try {
-    const { name, departmentId, department } = req.body;
+//     console.log("BODY:", req.body);
+// console.log("FILE:", req.file);
+    const { name, templateCode,departmentId, department } = req.body;
 
-    if (!name || (!departmentId && !department)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Template name and department are required.'
-      });
-    }
+ if (!name || !templateCode || (!departmentId && !department)) {
+  return res.status(400).json({
+    success: false,
+    message: 'Template name, template code and department are required.'
+  });
+}
 
     if (!req.file) {
       return res.status(400).json({
@@ -160,15 +163,16 @@ export const uploadTemplate = async (req, res) => {
     const content = result.value;
     const placeholders = extractPlaceholders(content);
 
-    const template = await prisma.template.create({
-      data: {
-        name: name.trim(),
-        department: resolvedDepartment.name,
-        content,
-        filePath: req.file.path,
-        placeholders: JSON.stringify(placeholders)
-      }
-    });
+const template = await prisma.template.create({
+  data: {
+    name: name.trim(),
+    templateCode: templateCode.trim().toUpperCase(),
+    department: resolvedDepartment.name,
+    content,
+    filePath: req.file.path,
+    placeholders: JSON.stringify(placeholders)
+  }
+});
 
     res.status(201).json({ success: true, message: 'Template uploaded successfully', template: normalizeTemplate(template), placeholders });
   } catch (error) {
