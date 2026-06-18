@@ -1,10 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,20 +8,45 @@ datasource db {
 }
 
 model Template {
-  id         Int      @id @default(autoincrement())
-  name       String
-  department String
-  content    String
-  createdAt  DateTime @default(now())
-
-  documents  Document[]
+  id           Int        @id @default(autoincrement())
+  name         String
+  department   String
+  content      String
+  createdAt    DateTime   @default(now())
+  filePath     String?
+  placeholders String?
+  documents    Document[]
 }
 
 model Document {
-  id         Int      @id @default(autoincrement())
-  templateId Int
-  content    String
-  createdAt  DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  templateId      Int
+  content         String
+  createdAt       DateTime @default(now())
+  filePath        String?
+  docxPath        String?
+  pdfPath         String?
+  metadata        String?
+  department      String?
+  documentName    String?
+  referenceNumber String?  @unique
+  template        Template @relation(fields: [templateId], references: [id])
 
-  template   Template @relation(fields: [templateId], references: [id])
+  @@index([createdAt])
+  @@index([department])
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model ReferenceCounter {
+  id           Int    @id @default(autoincrement())
+  department   String
+  documentType String
+  currentValue Int    @default(0)
+
+  @@unique([department, documentType])
 }
