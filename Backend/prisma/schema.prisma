@@ -24,12 +24,12 @@ model Document {
   content         String
   createdAt       DateTime @default(now())
   filePath        String?
-  docxPath        String?
-  pdfPath         String?
   metadata        String?
   department      String?
   documentName    String?
   referenceNumber String?  @unique
+  docxPath        String?
+  pdfPath         String?
   template        Template @relation(fields: [templateId], references: [id])
 
   @@index([createdAt])
@@ -39,6 +39,7 @@ model Document {
 model Department {
   id        Int      @id @default(autoincrement())
   name      String   @unique
+  shortCode String   @unique
   createdAt DateTime @default(now())
 }
 

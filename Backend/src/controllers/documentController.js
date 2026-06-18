@@ -24,7 +24,7 @@ const replacePlaceholdersInZip = (zip, placeholders) => {
     let xml = file.asText();
     placeholders.forEach((ph) => {
       const safe = ph.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const rx = new RegExp(`<\\s*${safe}\\s*>`, 'g');
+      const rx = new RegExp(`\\{\\s*${safe}\\s*\\}`, 'g');
       xml = xml.replace(rx, `{${ph}}`);
     });
     zip.file(entryName, xml);
@@ -102,8 +102,8 @@ export const generateDocument = async (req, res) => {
     } else {
       // Fallback: simple placeholder replacement in plain text content (legacy)
       Object.entries(values).forEach(([key, value]) => {
-        const regex = new RegExp(`<\\s*${key}\\s*>`, 'g');
-        generatedContent = generatedContent.replace(regex, value ?? '');
+      const regex = new RegExp(`\\{\\s*${key}\\s*\\}`, 'g');
+      generatedContent = generatedContent.replace(regex, value ?? '');
       });
     }
 
@@ -232,8 +232,8 @@ export const previewDocument = async (req, res) => {
 
     let previewContent = template.content;
     Object.entries(values).forEach(([key, value]) => {
-      const regex = new RegExp(`<\\s*${key}\\s*>`, 'g');
-      previewContent = previewContent.replace(regex, value ?? '');
+     const regex = new RegExp(`\\{\\s*${key}\\s*\\}`, 'g');
+     previewContent = previewContent.replace(regex, value ?? '');
     });
 
     res.status(200).json({ success: true, templateId, preview: previewContent });

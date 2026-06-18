@@ -1,12 +1,12 @@
-export const extractPlaceholders = (text) => {
+export const extractPlaceholders = (content) => {
 
-    const regex = /<([^<>]+)>/g;
+    const regex = /\{([^{}]+)\}/g;
 
     const placeholders = [];
 
     let match;
 
-    while ((match = regex.exec(text)) !== null) {
+    while ((match = regex.exec(content)) !== null) {
         placeholders.push(match[1].trim());
     }
 
