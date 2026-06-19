@@ -1,5 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import cors from 'cors'; // <-- ADD THIS
 import userRoute from './src/routes/userRoutes.js';
 import prisma from './src/config/prisma.js';
 import templateRoutes from './src/routes/templateRoutes.js';
@@ -12,8 +13,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ADD CORS HERE — before express.json() and before routes
+app.use(cors({
+  origin: 'http://localhost:5173', // your Vite frontend URL
+  credentials: true // allow cookies if you add auth later
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ... rest of your file stays the same
 
 app.get('/test-db', async (req, res) => {
   try {
