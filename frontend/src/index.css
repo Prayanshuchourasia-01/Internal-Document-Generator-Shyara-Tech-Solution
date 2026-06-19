@@ -97,14 +97,14 @@ h1{
 
 .card{
   background:white;
-  border-radius:16px;
+  border-radius:8px;
   padding:24px;
   box-shadow:0 2px 10px rgba(0,0,0,.08);
 }
 
 .card-grid{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
   gap:20px;
   margin-top:20px;
 }
@@ -126,6 +126,8 @@ h1{
   display:flex;
   justify-content:space-between;
   align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
 }
 
 .btn{
@@ -210,7 +212,12 @@ input{
   display:flex;
   justify-content:space-between;
   align-items:center;
+  gap:12px;
   margin-bottom:12px;
+}
+
+.department-header h3{
+  overflow-wrap:anywhere;
 }
 
 .delete-btn{
@@ -308,4 +315,73 @@ input{
   display:flex;
   flex-direction:column;
   gap:30px;
+}
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 4px;
+  display: flex;
+  gap: 6px; /* small space between buttons */
+}
+
+.dropdown-menu button {
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.35);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+  z-index:1000;
+}
+
+.modal{
+  width:min(100%,420px);
+  background:white;
+  border-radius:8px;
+  padding:24px;
+  box-shadow:0 18px 45px rgba(0,0,0,.18);
+}
+
+.modal h2{
+  font-size:22px;
+  margin-bottom:10px;
+}
+
+.modal input{
+  margin-top:10px;
+}
+
+@media (max-width: 700px){
+  .layout{
+    flex-direction:column;
+  }
+
+  .sidebar{
+    width:100%;
+  }
+
+  .page-container{
+    padding:20px;
+  }
+
+  .stats-grid,
+  .quick-grid,
+  .generate-layout{
+    grid-template-columns:1fr;
+  }
 }
