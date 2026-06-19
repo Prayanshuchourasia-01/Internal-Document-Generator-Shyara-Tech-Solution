@@ -416,3 +416,116 @@ export const deleteDocument = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const regenerateDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { values } = req.body;
+
+    if (!values || typeof values !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'values must be a valid object'
+      });
+    }
+
+    // Find existing document
+    const existingDoc = await prisma.document.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (!existingDoc) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    // Get template
+    const template = await prisma.template.findUnique({
+      where: { id: existingDoc.templateId }
+    });
+
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Template not found' });
+    }
+
+    // Generate new content with updated values
+    let generatedContent = template.content;
+    let savedDocxPath = existingDoc.docxPath;
+    let savedPdfPath = existingDoc.pdfPath;
+
+    // Delete old files if they exist
+    if (existingDoc.filePath && fs.existsSync(existingDoc.filePath)) {
+      fs.unlinkSync(existingDoc.filePath);
+    }
+    if (existingDoc.docxPath && fs.existsSync(existingDoc.docxPath)) {
+      fs.unlinkSync(existingDoc.docxPath);
+    }
+    if (existingDoc.pdfPath && fs.existsSync(existingDoc.pdfPath)) {
+      fs.unlinkSync(existingDoc.pdfPath);
+    }
+
+    const fileBaseName = existingDoc.documentName;
+
+    // Regenerate DOCX and PDF
+    if (template.filePath && fs.existsSync(template.filePath)) {
+      const content = fs.readFileSync(template.filePath, 'binary');
+      const zip = new PizZip(content);
+      const placeholders = template.placeholders ? JSON.parse(template.placeholders || '[]') : [];
+
+      if (placeholders.length) {
+        replacePlaceholdersInZip(zip, placeholders);
+      }
+
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      doc.render(values || {});
+
+      const buffer = doc.getZip().generate({ type: 'nodebuffer' });
+
+      // Save new DOCX
+      const outDocxDir = path.join('generated-documents', 'docx');
+      const docxName = `${fileBaseName}.docx`;
+      savedDocxPath = saveBufferToFile(buffer, path.join(outDocxDir, docxName));
+
+      // Convert to PDF
+      try {
+        const pdfBuffer = await convertDocxBufferToPdf(buffer);
+        const outPdfDir = path.join('generated-documents', 'pdf');
+        const pdfName = `${fileBaseName}.pdf`;
+        savedPdfPath = saveBufferToFile(pdfBuffer, path.join(outPdfDir, pdfName));
+      } catch (convErr) {
+        console.warn('DOCX -> PDF conversion failed', convErr?.message || convErr);
+      }
+    } else {
+      // Fallback: simple placeholder replacement
+      Object.entries(values).forEach(([key, value]) => {
+        const regex = new RegExp(`\\{\\s*${key}\\s*\\}`, 'g');
+        generatedContent = generatedContent.replace(regex, value ?? '');
+      });
+    }
+
+    // Update existing document record
+    const updatedDocument = await prisma.document.update({
+      where: { id: Number(id) },
+      data: {
+        content: generatedContent,
+        filePath: savedPdfPath || savedDocxPath || existingDoc.filePath,
+        docxPath: savedDocxPath || existingDoc.docxPath,
+        pdfPath: savedPdfPath || existingDoc.pdfPath,
+        metadata: JSON.stringify(values),
+        createdAt: new Date() // Update to current time
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Document regenerated successfully',
+      referenceNumber: existingDoc.referenceNumber,
+      document: updatedDocument
+    });
+  } catch (error) {
+    console.error(error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
