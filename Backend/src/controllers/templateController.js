@@ -27,10 +27,10 @@ const normalizeTemplate = (template) => ({
 
 export const createTemplate = async (req, res) => {
   try {
-    const { name, departmentId, department, content } = req.body;
+    const {  name,  templateCode,  departmentId,  department,  content} = req.body;
 
-    if (!name || !content || (!departmentId && !department)) {
-      return res.status(400).json({ success: false, message: 'Template name, content, and department are required.' });
+    if ( !name || !templateCode ||  !content ||  (!departmentId && !department)) {
+      return res.status(400).json({ success: false, message: 'Template name, template code, content and department are required.'});
     }
 
     const resolvedDepartment = await resolveDepartment({ departmentId, department });
@@ -39,15 +39,16 @@ export const createTemplate = async (req, res) => {
     }
 
     const placeholders = extractPlaceholders(content);
-    const template = await prisma.template.create({
-      data: {
-        name: name.trim(),
-        department: resolvedDepartment.name,
-        content,
-        placeholders: JSON.stringify(placeholders),
-        filePath: null
-      }
-    });
+const template = await prisma.template.create({
+  data: {
+    name: name.trim(),
+    templateCode: templateCode.trim().toUpperCase(),
+    department: resolvedDepartment.name,
+    content,
+    placeholders: JSON.stringify(placeholders),
+    filePath: null
+  }
+});
 
     res.status(201).json({ success: true, template: normalizeTemplate(template) });
   } catch (error) {
@@ -86,10 +87,22 @@ export const getTemplateById = async (req, res) => {
 export const updateTemplate = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, departmentId, department, content } = req.body;
+    const {
+  name,
+  templateCode,
+  departmentId,
+  department,
+  content
+} = req.body;
 
-    if (!name && !departmentId && !department && !content) {
-      return res.status(400).json({ success: false, message: 'Provide at least one field to update: name, department, or content.' });
+    if (
+  !name &&
+  !templateCode &&
+  !departmentId &&
+  !department &&
+  !content
+) {
+      return res.status(400).json({ success: false, message: 'Provide at least one field to update: name, templateCode, department or content.' });
     }
 
     let resolvedDepartment;
@@ -100,15 +113,18 @@ export const updateTemplate = async (req, res) => {
       }
     }
 
-    const template = await prisma.template.update({
-      where: { id: Number(id) },
-      data: {
-        name: name?.trim(),
-        department: resolvedDepartment?.name,
-        content,
-        placeholders: content ? JSON.stringify(extractPlaceholders(content)) : undefined
-      }
-    });
+const template = await prisma.template.update({
+  where: { id: Number(id) },
+  data: {
+    name: name?.trim(),
+    templateCode: templateCode?.trim().toUpperCase(),
+    department: resolvedDepartment?.name,
+    content,
+    placeholders: content
+      ? JSON.stringify(extractPlaceholders(content))
+      : undefined
+  }
+});
 
     res.status(200).json({ success: true, template: normalizeTemplate(template) });
   } catch (error) {
@@ -169,8 +185,8 @@ const template = await prisma.template.create({
     templateCode: templateCode.trim().toUpperCase(),
     department: resolvedDepartment.name,
     content,
-    filePath: req.file.path,
-    placeholders: JSON.stringify(placeholders)
+    placeholders: JSON.stringify(placeholders),
+    filePath: req.file.path
   }
 });
 
@@ -193,6 +209,7 @@ export const getTemplatePlaceholders = async (req, res) => {
     res.status(200).json({
       success: true,
       templateId: template.id,
+      templateCode: template.templateCode,
       templateName: template.name,
       placeholders: JSON.parse(template.placeholders || '[]')
     });

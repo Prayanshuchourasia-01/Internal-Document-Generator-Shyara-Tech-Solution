@@ -33,14 +33,14 @@ const replacePlaceholdersInZip = (zip, placeholders) => {
 
 export const generateDocument = async (req, res) => {
   try {
-    const { templateId, documentCode, values } = req.body;
+    const { templateId, values } = req.body;
 
-    if (!templateId || !documentCode) {
-      return res.status(400).json({
-        success: false,
-        message: 'templateId and documentCode are required'
-      });
-    }
+    if (!templateId) {
+  return res.status(400).json({
+    success: false,
+    message: 'templateId is required'
+  });
+}
 
     if (!values || typeof values !== 'object') {
       return res.status(400).json({
@@ -65,6 +65,27 @@ export const generateDocument = async (req, res) => {
     let savedDocxPath = null;
     let savedPdfPath = null;
 
+    const deptValue =
+  typeof template.department === 'string'
+    ? template.department
+    : (
+        template.department?.shortCode ||
+        template.department?.name ||
+        String(template.department)
+      );
+
+const normalizedDocumentCode =
+  template.templateCode.trim().toUpperCase();
+
+const referenceNumber =
+  await generateReferenceNumber(
+    deptValue,
+    normalizedDocumentCode
+  );
+
+const fileBaseName =
+  referenceNumber.replace(/\//g, '_');
+
     if (template.filePath && fs.existsSync(template.filePath)) {
       // Read original DOCX as binary
       const content = fs.readFileSync(template.filePath, 'binary');
@@ -87,14 +108,14 @@ export const generateDocument = async (req, res) => {
 
       // Save DOCX
       const outDocxDir = path.join('generated-documents', 'docx');
-      const docxName = `document-${Date.now()}.docx`;
+      const docxName = `${fileBaseName}.docx`;
       savedDocxPath = saveBufferToFile(buffer, path.join(outDocxDir, docxName));
 
       // Convert to PDF if possible
       try {
         const pdfBuffer = await convertDocxBufferToPdf(buffer);
         const outPdfDir = path.join('generated-documents', 'pdf');
-        const pdfName = `document-${Date.now()}.pdf`;
+        const pdfName = `${fileBaseName}.pdf`;
         savedPdfPath = saveBufferToFile(pdfBuffer, path.join(outPdfDir, pdfName));
       } catch (convErr) {
         console.warn('DOCX -> PDF conversion failed, continuing without PDF', convErr?.message || convErr);
@@ -107,16 +128,11 @@ export const generateDocument = async (req, res) => {
       });
     }
 
-    const normalizedDocumentCode = documentCode.trim().toUpperCase();
-
-    // Determine department short code/name from template (DB has department as string)
-    const deptValue = typeof template.department === 'string' ? template.department : (template.department?.shortCode || template.department?.name || String(template.department));
-    const referenceNumber = await generateReferenceNumber(deptValue, normalizedDocumentCode);
 
     const document = await prisma.document.create({
       data: {
         templateId: template.id,
-        documentName: template.name,
+        documentName: fileBaseName,
         department: deptValue,
         referenceNumber,
         content: generatedContent,
