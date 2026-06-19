@@ -1,6 +1,22 @@
-node_modules
+
+
+# Dependencies
+node_modules/
+
+# Environment variables
 .env
+
+# Prisma generated files
 /generated/prisma
 
-/generated/prisma
-/uploads
+# Uploaded files
+uploads/
+
+# Dynamically generated documents
+/generated-documents/
+
+# Local backups
+backups/
+
+
+prisma/dev.db

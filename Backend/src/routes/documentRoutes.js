@@ -5,7 +5,9 @@ import {
   getDocumentById,
   generatePDF,
   previewDocument,
-  downloadDocument
+  downloadDocument,
+  updateDocument,      // <-- ADD
+  deleteDocument       // <-- ADD
 } from '../controllers/documentController.js';
 
 const router = express.Router();
@@ -16,8 +18,8 @@ router.get('/history', getDocuments);
 router.get('/', getDocuments);
 router.get('/:id/download', downloadDocument);
 router.get('/:id/pdf', generatePDF);
+router.put('/:id', updateDocument);       // <-- ADD THIS LINE
+router.delete('/:id', deleteDocument);  // <-- ADD THIS LINE
 router.get('/:id', getDocumentById);
 
 export default router;
-
-

@@ -1,62 +1,107 @@
 import { useState, useEffect } from "react";
 import Breadcrumb from "../components/Breadcrumb";
+import { fetchAPI } from "../api";
 
 function History() {
-  const departments =
-    JSON.parse(localStorage.getItem("departments")) || [];
-
   const [documents, setDocuments] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [showCount, setShowCount] = useState(5);
   const [openMenu, setOpenMenu] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // NEW: editing state
   const [editingIndex, setEditingIndex] = useState(null);
   const [editData, setEditData] = useState({});
 
+  // Fetch documents and departments from backend
   useEffect(() => {
-    const savedHistory =
-      JSON.parse(localStorage.getItem("history")) || [];
-    setDocuments(savedHistory);
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [docsRes, deptsRes] = await Promise.all([
+          fetchAPI('/api/documents'),
+          fetchAPI('/api/departments'),
+        ]);
+        setDocuments(docsRes.documents || []);
+        setDepartments(deptsRes.departments || []);
+      } catch (err) {
+        console.error("API ERROR:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
   }, []);
 
-  const documentTypes = [...new Set(documents.map((doc) => doc.type))];
+  // Extract unique document types from templates (using department as type for now, or we can fetch templates)
+  const documentTypes = [...new Set(documents.map((doc) => doc.department))];
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesSearch =
-      doc.document?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.documentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.referenceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.department?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesDepartment =
       selectedDepartment === "" || doc.department === selectedDepartment;
 
-    const matchesType = selectedType === "" || doc.type === selectedType;
+    const matchesType = selectedType === "" || doc.department === selectedType;
 
     return matchesSearch && matchesDepartment && matchesType;
   });
 
-  const deleteDocument = (indexToDelete) => {
-    const updatedDocuments = documents.filter((_, index) => index !== indexToDelete);
-    setDocuments(updatedDocuments);
-    localStorage.setItem("history", JSON.stringify(updatedDocuments));
-    setOpenMenu(null);
-  };
+const deleteDocument = async (indexToDelete) => {
+  const doc = filteredDocuments[indexToDelete];
+  try {
+    await fetchAPI(`/api/documents/${doc.id}`, { method: 'DELETE' });
+    setDocuments(documents.filter(d => d.id !== doc.id));
+  } catch (err) {
+    console.error("Delete failed:", err);
+    alert("Failed to delete document");
+  }
+  setOpenMenu(null);
+};
 
-  const saveEdit = (index) => {
-    const updatedDocuments = [...documents];
-    updatedDocuments[index] = {
-      ...editData,
-      reference: documents[index].reference, // keep reference unchanged
-    };
-    setDocuments(updatedDocuments);
-    localStorage.setItem("history", JSON.stringify(updatedDocuments));
+const saveEdit = async (index) => {
+  const doc = filteredDocuments[index];
+  try {
+    const updated = await fetchAPI(`/api/documents/${doc.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        documentName: editData.documentName,
+        department: editData.department,
+      }),
+    });
+    
+    // Update local state with response
+    setDocuments(documents.map(d => d.id === doc.id ? updated.document : d));
     setEditingIndex(null);
     setOpenMenu(null);
+  } catch (err) {
+    console.error("Update failed:", err);
+    alert("Failed to update document");
+  }
+};
+  // Format date nicely
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
+
+  if (loading) return <p>Loading documents...</p>;
+  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
   return (
     <>
@@ -67,7 +112,7 @@ function History() {
       <div className="history-filters">
         <input
           className="search-box"
-          placeholder="Search by document, reference or department"
+          placeholder="Search by document name, reference or department"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -79,8 +124,8 @@ function History() {
         >
           <option value="">All Departments</option>
           {departments.map((dept) => (
-            <option key={dept} value={dept}>
-              {dept}
+            <option key={dept.id} value={dept.name}>
+              {dept.name}
             </option>
           ))}
         </select>
@@ -103,8 +148,8 @@ function History() {
       <table>
         <thead>
           <tr>
-            <th>Document</th>
-            <th>Reference</th>
+            <th>Document Name</th>
+            <th>Reference Number</th>
             <th>Department</th>
             <th>Type</th>
             <th>Date</th>
@@ -115,13 +160,13 @@ function History() {
         <tbody>
           {filteredDocuments.length > 0 ? (
             filteredDocuments.slice(0, showCount).map((doc, index) => (
-              <tr key={index}>
+              <tr key={doc.id}>
                 <td>
                   {editingIndex === index ? (
                     <input
-                      value={editData.document}
+                      value={editData.documentName || ''}
                       onChange={(e) =>
-                        setEditData({ ...editData, document: e.target.value })
+                        setEditData({ ...editData, documentName: e.target.value })
                       }
                     />
                   ) : (
@@ -129,15 +174,15 @@ function History() {
                       className="document-link"
                       onClick={() => setSelectedDocument(doc)}
                     >
-                      {doc.document}
+                      {doc.documentName}
                     </span>
                   )}
                 </td>
-                <td>{doc.reference}</td>
+                <td>{doc.referenceNumber}</td>
                 <td>
                   {editingIndex === index ? (
                     <input
-                      value={editData.department}
+                      value={editData.department || ''}
                       onChange={(e) =>
                         setEditData({ ...editData, department: e.target.value })
                       }
@@ -149,25 +194,25 @@ function History() {
                 <td>
                   {editingIndex === index ? (
                     <input
-                      value={editData.type}
+                      value={editData.department || ''}
                       onChange={(e) =>
-                        setEditData({ ...editData, type: e.target.value })
+                        setEditData({ ...editData, department: e.target.value })
                       }
                     />
                   ) : (
-                    doc.type
+                    doc.department
                   )}
                 </td>
                 <td>
                   {editingIndex === index ? (
                     <input
-                      value={editData.date}
+                      value={editData.createdAt || ''}
                       onChange={(e) =>
-                        setEditData({ ...editData, date: e.target.value })
+                        setEditData({ ...editData, createdAt: e.target.value })
                       }
                     />
                   ) : (
-                    doc.date
+                    formatDate(doc.createdAt)
                   )}
                 </td>
                 <td style={{ position: "relative" }}>
@@ -199,6 +244,12 @@ function History() {
                           <button onClick={() => deleteDocument(index)}>
                             Delete
                           </button>
+                         <button onClick={() => {
+  window.open(`http://localhost:3000/api/documents/${doc.id}/download`, '_blank');
+  setOpenMenu(null);
+}}>
+  Download PDF
+</button>
                         </>
                       )}
                     </div>
@@ -236,21 +287,21 @@ function History() {
         <div className="card" style={{ marginTop: "25px" }}>
           <h2>Document Preview</h2>
           <hr />
-          <p>
-            <b>Document:</b> {selectedDocument.document}
-          </p>
-          <p>
-            <b>Reference:</b> {selectedDocument.reference}
-          </p>
-          <p>
-            <b>Department:</b> {selectedDocument.department}
-          </p>
-          <p>
-            <b>Type:</b> {selectedDocument.type}
-          </p>
-          <p>
-            <b>Date:</b> {selectedDocument.date}
-          </p>
+          <p><b>Document Name:</b> {selectedDocument.documentName}</p>
+          <p><b>Reference Number:</b> {selectedDocument.referenceNumber}</p>
+          <p><b>Department:</b> {selectedDocument.department}</p>
+          <p><b>Date:</b> {formatDate(selectedDocument.createdAt)}</p>
+          <p><b>Template ID:</b> {selectedDocument.templateId}</p>
+          <div style={{ marginTop: "15px" }}>
+            <a 
+              href={`http://localhost:3000${selectedDocument.pdfPath || selectedDocument.filePath}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn"
+            >
+              Download PDF
+            </a>
+          </div>
         </div>
       )}
     </>

@@ -344,3 +344,75 @@ export const downloadDocument = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+// ADD THIS TO documentController.js (after downloadDocument, before closing)
+
+export const updateDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { documentName, department, metadata } = req.body;
+
+    if (!documentName && !department && !metadata) {
+      return res.status(400).json({
+        success: false,
+        message: 'Provide at least one field to update: documentName, department, or metadata'
+      });
+    }
+
+    const updateData = {};
+    if (documentName) updateData.documentName = documentName.trim();
+    if (department) updateData.department = department.trim();
+    if (metadata) updateData.metadata = JSON.stringify(metadata);
+
+    const document = await prisma.document.update({
+      where: { id: Number(id) },
+      data: updateData
+    });
+
+    res.status(200).json({ success: true, document });
+  } catch (error) {
+    console.error(error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const document = await prisma.document.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    // Delete associated files if they exist
+    if (document.filePath && fs.existsSync(document.filePath)) {
+      fs.unlinkSync(document.filePath);
+    }
+    if (document.docxPath && fs.existsSync(document.docxPath)) {
+      fs.unlinkSync(document.docxPath);
+    }
+    if (document.pdfPath && fs.existsSync(document.pdfPath)) {
+      fs.unlinkSync(document.pdfPath);
+    }
+
+    await prisma.document.delete({
+      where: { id: Number(id) }
+    });
+
+    res.status(200).json({ success: true, message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
