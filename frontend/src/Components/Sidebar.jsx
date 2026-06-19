@@ -49,9 +49,12 @@ function Sidebar() {
   return (
     <aside className="sidebar">
 
-        <div className="logo">
-      <img src={logo} alt="logo" />
-    </div>
+       <div className="logo">
+  <img src={logo} alt="logo" onError={(e) => {
+    e.target.style.display = 'none';
+    console.error('Logo failed to load:', logo);
+  }} />
+</div>
 
 
       <div className="menu">
