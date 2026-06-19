@@ -72,7 +72,7 @@ function Sidebar() {
       </div>
 
       <div className="version">
-        Shyara DocAuto v0.1
+        Shyara DocuFlow Version 1.0
       </div>
       
       
