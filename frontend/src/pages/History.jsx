@@ -5,30 +5,36 @@ import { fetchAPI } from "../api";
 function History() {
   const [documents, setDocuments] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [showCount, setShowCount] = useState(5);
-  const [openMenu, setOpenMenu] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState("");
 
-  // NEW: editing state
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [editData, setEditData] = useState({});
+  // Edit modal state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState(null);
+  const [editPlaceholders, setEditPlaceholders] = useState({});
+  const [editTemplate, setEditTemplate] = useState(null);
+  const [regenerating, setRegenerating] = useState(false);
 
-  // Fetch documents and departments from backend
+  // Fetch documents, departments, and templates
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
-        const [docsRes, deptsRes] = await Promise.all([
+        const [docsRes, deptsRes, templatesRes] = await Promise.all([
           fetchAPI('/api/documents'),
           fetchAPI('/api/departments'),
+          fetchAPI('/api/templates'),
         ]);
         setDocuments(docsRes.documents || []);
         setDepartments(deptsRes.departments || []);
+        setTemplates(templatesRes.templates || []);
       } catch (err) {
         console.error("API ERROR:", err);
         setError(err.message);
@@ -39,10 +45,75 @@ function History() {
     loadData();
   }, []);
 
-  // Extract unique document types from templates (using department as type for now, or we can fetch templates)
-  const documentTypes = [...new Set(documents.map((doc) => doc.department))];
+  const getTemplateName = (templateId) => {
+    const template = templates.find(t => t.id === templateId);
+    return template?.name || "Unknown";
+  };
+
+  const getTemplate = (templateId) => {
+    return templates.find(t => t.id === templateId);
+  };
+
+  // Open edit modal with placeholder values
+  const openEditModal = (doc) => {
+    const template = getTemplate(doc.templateId);
+    setEditTemplate(template);
+    setEditingDoc(doc);
+    
+    let currentValues = {};
+    try {
+      currentValues = JSON.parse(doc.metadata || '{}');
+    } catch {
+      currentValues = {};
+    }
+    
+    const placeholders = template?.placeholders || [];
+    const initialValues = {};
+    placeholders.forEach(ph => {
+      initialValues[ph] = currentValues[ph] || '';
+    });
+    
+    setEditPlaceholders(initialValues);
+    setEditModalOpen(true);
+  };
+
+  // Regenerate document with updated values
+  const handleRegenerate = async () => {
+    if (!editingDoc) return;
+    
+    const emptyFields = Object.entries(editPlaceholders).filter(([_, v]) => !v.trim());
+    if (emptyFields.length > 0) {
+      alert(`Please fill all fields: ${emptyFields.map(([k]) => k).join(', ')}`);
+      return;
+    }
+    
+    setRegenerating(true);
+    try {
+      const res = await fetchAPI(`/api/documents/${editingDoc.id}/regenerate`, {
+        method: 'POST',
+        body: JSON.stringify({ values: editPlaceholders }),
+      });
+      
+      setDocuments(documents.map(d => d.id === editingDoc.id ? res.document : d));
+      setSuccessMsg(`Document "${res.document.documentName}" regenerated successfully!`);
+      setTimeout(() => setSuccessMsg(""), 3000);
+      setEditModalOpen(false);
+      setEditingDoc(null);
+      setEditTemplate(null);
+      setEditPlaceholders({});
+    } catch (err) {
+      console.error("Regenerate failed:", err);
+      alert("Failed to regenerate document: " + err.message);
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const documentTypes = [...new Set(documents.map((doc) => getTemplateName(doc.templateId)))];
 
   const filteredDocuments = documents.filter((doc) => {
+    const templateName = getTemplateName(doc.templateId);
+    
     const matchesSearch =
       doc.documentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.referenceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,44 +122,25 @@ function History() {
     const matchesDepartment =
       selectedDepartment === "" || doc.department === selectedDepartment;
 
-    const matchesType = selectedType === "" || doc.department === selectedType;
+    const matchesType = selectedType === "" || templateName === selectedType;
 
     return matchesSearch && matchesDepartment && matchesType;
   });
 
-const deleteDocument = async (indexToDelete) => {
-  const doc = filteredDocuments[indexToDelete];
-  try {
-    await fetchAPI(`/api/documents/${doc.id}`, { method: 'DELETE' });
-    setDocuments(documents.filter(d => d.id !== doc.id));
-  } catch (err) {
-    console.error("Delete failed:", err);
-    alert("Failed to delete document");
-  }
-  setOpenMenu(null);
-};
-
-const saveEdit = async (index) => {
-  const doc = filteredDocuments[index];
-  try {
-    const updated = await fetchAPI(`/api/documents/${doc.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        documentName: editData.documentName,
-        department: editData.department,
-      }),
-    });
+  const deleteDocument = async (doc) => {
+    if (!window.confirm(`Are you sure you want to delete "${doc.documentName}"?`)) return;
     
-    // Update local state with response
-    setDocuments(documents.map(d => d.id === doc.id ? updated.document : d));
-    setEditingIndex(null);
-    setOpenMenu(null);
-  } catch (err) {
-    console.error("Update failed:", err);
-    alert("Failed to update document");
-  }
-};
-  // Format date nicely
+    try {
+      await fetchAPI(`/api/documents/${doc.id}`, { method: 'DELETE' });
+      setDocuments(documents.filter(d => d.id !== doc.id));
+      setSuccessMsg("Document deleted successfully!");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Failed to delete document");
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-GB', {
@@ -107,6 +159,18 @@ const saveEdit = async (index) => {
     <>
       <Breadcrumb />
       <h1>Document History</h1>
+
+      {successMsg && (
+        <div style={{ 
+          background: '#d4edda', 
+          color: '#155724', 
+          padding: '10px 15px', 
+          borderRadius: '5px',
+          marginBottom: '15px'
+        }}>
+          ✅ {successMsg}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="history-filters">
@@ -153,107 +217,90 @@ const saveEdit = async (index) => {
             <th>Department</th>
             <th>Type</th>
             <th>Date</th>
-            <th>Actions</th>
+            <th style={{ textAlign: 'center' }}>Actions</th>
           </tr>
         </thead>
 
         <tbody>
           {filteredDocuments.length > 0 ? (
-            filteredDocuments.slice(0, showCount).map((doc, index) => (
+            filteredDocuments.slice(0, showCount).map((doc) => (
               <tr key={doc.id}>
                 <td>
-                  {editingIndex === index ? (
-                    <input
-                      value={editData.documentName || ''}
-                      onChange={(e) =>
-                        setEditData({ ...editData, documentName: e.target.value })
-                      }
-                    />
-                  ) : (
-                    <span
-                      className="document-link"
-                      onClick={() => setSelectedDocument(doc)}
-                    >
-                      {doc.documentName}
-                    </span>
-                  )}
+                  <span
+                    className="document-link"
+                    onClick={() => setSelectedDocument(doc)}
+                    style={{ cursor: 'pointer', color: '#007bff' }}
+                  >
+                    {doc.documentName}
+                  </span>
                 </td>
                 <td>{doc.referenceNumber}</td>
-                <td>
-                  {editingIndex === index ? (
-                    <input
-                      value={editData.department || ''}
-                      onChange={(e) =>
-                        setEditData({ ...editData, department: e.target.value })
-                      }
-                    />
-                  ) : (
-                    doc.department
-                  )}
-                </td>
-                <td>
-                  {editingIndex === index ? (
-                    <input
-                      value={editData.department || ''}
-                      onChange={(e) =>
-                        setEditData({ ...editData, department: e.target.value })
-                      }
-                    />
-                  ) : (
-                    doc.department
-                  )}
-                </td>
-                <td>
-                  {editingIndex === index ? (
-                    <input
-                      value={editData.createdAt || ''}
-                      onChange={(e) =>
-                        setEditData({ ...editData, createdAt: e.target.value })
-                      }
-                    />
-                  ) : (
-                    formatDate(doc.createdAt)
-                  )}
-                </td>
-                <td style={{ position: "relative" }}>
-                  <button
-                    onClick={() =>
-                      setOpenMenu(openMenu === index ? null : index)
-                    }
-                  >
-                    ⋮
-                  </button>
-
-                  {openMenu === index && (
-                    <div className="dropdown-menu">
-                      {editingIndex === index ? (
-                        <>
-                          <button onClick={() => saveEdit(index)}>Save</button>
-                          <button onClick={() => setEditingIndex(null)}>Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => {
-                              setEditingIndex(index);
-                              setEditData(doc);
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button onClick={() => deleteDocument(index)}>
-                            Delete
-                          </button>
-                         <button onClick={() => {
-  window.open(`http://localhost:3000/api/documents/${doc.id}/download`, '_blank');
-  setOpenMenu(null);
-}}>
-  Download PDF
-</button>
-                        </>
-                      )}
-                    </div>
-                  )}
+                <td>{doc.department}</td>
+                <td>{getTemplateName(doc.templateId)}</td>
+                <td>{formatDate(doc.createdAt)}</td>
+                
+                {/* INLINE ACTION BUTTONS */}
+                <td style={{ textAlign: 'center' }}>
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                    {/* Edit Button */}
+                    <button
+                      onClick={() => openEditModal(doc)}
+                      title="Edit / Regenerate"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #007bff',
+                        background: '#007bff',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      ✏️ Edit
+                    </button>
+                    
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => deleteDocument(doc)}
+                      title="Delete"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #dc3545',
+                        background: '#dc3545',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      🗑️
+                    </button>
+                    
+                    {/* Download Button */}
+                    <a
+                      href={`http://localhost:3000/api/documents/${doc.id}/download`}
+                      download
+                      title="Download PDF"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <button
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #28a745',
+                          background: '#28a745',
+                          color: 'white',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        📄
+                      </button>
+                    </a>
+                  </div>
                 </td>
               </tr>
             ))
@@ -290,17 +337,99 @@ const saveEdit = async (index) => {
           <p><b>Document Name:</b> {selectedDocument.documentName}</p>
           <p><b>Reference Number:</b> {selectedDocument.referenceNumber}</p>
           <p><b>Department:</b> {selectedDocument.department}</p>
+          <p><b>Type:</b> {getTemplateName(selectedDocument.templateId)}</p>
           <p><b>Date:</b> {formatDate(selectedDocument.createdAt)}</p>
           <p><b>Template ID:</b> {selectedDocument.templateId}</p>
           <div style={{ marginTop: "15px" }}>
             <a 
-              href={`http://localhost:3000${selectedDocument.pdfPath || selectedDocument.filePath}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
+              href={`http://localhost:3000/api/documents/${selectedDocument.id}/download`}
+              download
               className="btn"
             >
               Download PDF
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
+      {editModalOpen && editingDoc && editTemplate && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '10px',
+            width: '90%',
+            maxWidth: '500px',
+            maxHeight: '80vh',
+            overflowY: 'auto'
+          }}>
+            <h2>Edit / Regenerate Document</h2>
+            <p style={{ color: '#666', marginBottom: '20px' }}>
+              <b>{editingDoc.documentName}</b> | Ref: {editingDoc.referenceNumber}
+            </p>
+            <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
+              Reference number and document name cannot be changed. Date will update automatically.
+            </p>
+
+            <h3>Fill Placeholders</h3>
+            {editTemplate.placeholders?.map((placeholder) => (
+              <div key={placeholder} style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  {placeholder}
+                </label>
+                <input
+                  type="text"
+                  value={editPlaceholders[placeholder] || ''}
+                  onChange={(e) => setEditPlaceholders({
+                    ...editPlaceholders,
+                    [placeholder]: e.target.value
+                  })}
+                  placeholder={`Enter ${placeholder}`}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '5px',
+                    border: '1px solid #ddd'
+                  }}
+                />
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
+              <button
+                className="btn"
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                style={{ flex: 1 }}
+              >
+                {regenerating ? 'Regenerating...' : 'Regenerate Document'}
+              </button>
+              <button
+                className="btn"
+                onClick={() => {
+                  setEditModalOpen(false);
+                  setEditingDoc(null);
+                  setEditTemplate(null);
+                  setEditPlaceholders({});
+                }}
+                style={{ 
+                  flex: 1, 
+                  background: '#6c757d',
+                  color: 'white'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
