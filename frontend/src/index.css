@@ -309,3 +309,20 @@ input{
   flex-direction:column;
   gap:30px;
 }
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 4px;
+  display: flex;
+  gap: 6px; /* small space between buttons */
+}
+
+.dropdown-menu button {
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+
