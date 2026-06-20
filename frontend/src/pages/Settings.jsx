@@ -3,7 +3,6 @@ import Breadcrumb from "../components/Breadcrumb";
 import { fetchAPI } from "../api";
 
 function Settings() {
-  const [storagePath, setStoragePath] = useState("C:\\Shyara\\Documents");
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -18,8 +17,7 @@ function Settings() {
 
   const checkStatus = async () => {
     try {
-      // Check backend
-      const res = await fetchAPI('/test-db');
+      await fetchAPI('/test-db');
       setBackendStatus("connected");
       setDbStatus("connected");
     } catch (err) {
@@ -54,12 +52,11 @@ function Settings() {
     }
   };
 
-  // Restore Backup with confirmation
+  // Restore Backup
   const handleRestoreBackup = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validate it's a ZIP file
     if (!file.name.endsWith('.zip')) {
       setErrorMsg("Please upload a ZIP file only");
       setTimeout(() => setErrorMsg(""), 3000);
@@ -67,7 +64,6 @@ function Settings() {
       return;
     }
 
-    // Warning confirmation
     const confirmRestore = window.confirm(
       "⚠️ WARNING: Restoring a backup will REPLACE all current data!\n\n" +
       "This will overwrite:\n" +
@@ -103,9 +99,7 @@ function Settings() {
 
       const data = await res.json();
       setSuccessMsg(data.message || "Backup restored successfully! Please refresh the page.");
-      setTimeout(() => setSuccessMsg(""), 8000); // Show longer for restore
-      
-      // Re-check status after restore
+      setTimeout(() => setSuccessMsg(""), 8000);
       setTimeout(() => checkStatus(), 2000);
       
     } catch (err) {
@@ -116,13 +110,6 @@ function Settings() {
       setRestoreLoading(false);
       event.target.value = '';
     }
-  };
-
-  // Save Storage Path
-  const handleSavePath = () => {
-    localStorage.setItem('storagePath', storagePath);
-    setSuccessMsg("Storage path saved!");
-    setTimeout(() => setSuccessMsg(""), 3000);
   };
 
   return (
@@ -219,102 +206,50 @@ function Settings() {
           </p>
         </div>
 
-        {/* Storage Location Card */}
-        <div className="card" style={{ padding: '25px' }}>
-          <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Storage Location</h3>
-          
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '8px', 
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#333'
-              }}>
-                Default Save Path
-              </label>
-              <input
-                type="text"
-                value={storagePath}
-                onChange={(e) => setStoragePath(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '6px',
-                  border: '1px solid #ddd',
-                  fontSize: '14px',
-                  fontFamily: 'monospace'
-                }}
-              />
-              <p style={{ 
-                marginTop: '8px', 
-                color: '#666', 
-                fontSize: '12px' 
-              }}>
-                Where generated documents will be saved locally
-              </p>
-            </div>
-            
-            <button
-              onClick={handleSavePath}
-              style={{
-                padding: '12px 20px',
-                borderRadius: '6px',
-                border: 'none',
-                background: '#28a745',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                marginTop: '24px'
-              }}
-            >
-              Save
-            </button>
-          </div>
-        </div>
-
-        {/* About Card with Backend + Database Status */}
+        {/* About Card */}
         <div className="card" style={{ padding: '25px' }}>
           <h3 style={{ marginTop: 0, marginBottom: '15px' }}>About</h3>
           <div style={{ color: '#666', fontSize: '14px', lineHeight: '1.6' }}>
-  <p style={{ margin: '0 0 5px 0' }}>
-    <b style={{ fontSize: '16px', color: '#001f5c' }}>Shyara DocuFlow</b>
-    <span style={{ color: '#999', marginLeft: '10px' }}>Version 1.0</span>
-  </p>
-  <p style={{ margin: '0 0 15px 0' }}>
-    Enterprise Document Automation & Management Platform
-  </p>
-  
-  <div style={{ 
-    marginTop: '15px', 
-    display: 'flex', 
-    flexDirection: 'column', 
-    gap: '10px',
-    background: '#f8f9fa',
-    padding: '15px',
-    borderRadius: '8px'
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <span style={{ color: '#666', minWidth: '80px' }}>Backend:</span>
-      {backendStatus === "connected" ? (
-        <span style={{ color: '#28a745', fontWeight: '500' }}>● Online</span>
-      ) : (
-        <span style={{ color: '#dc3545', fontWeight: '500' }}>● Offline</span>
-      )}
-    </div>
-    
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <span style={{ color: '#666', minWidth: '80px' }}>Database:</span>
-      {dbStatus === "connected" ? (
-        <span style={{ color: '#28a745', fontWeight: '500' }}>● Connected (SQLite)</span>
-      ) : (
-        <span style={{ color: '#dc3545', fontWeight: '500' }}>● Disconnected</span>
-      )}
-    </div>
-  </div>
-</div>
+            <p style={{ margin: '0 0 5px 0' }}>
+              <b style={{ fontSize: '16px', color: '#001f5c' }}>Shyara DocuFlow</b>
+              <span style={{ color: '#999', marginLeft: '10px' }}>Version 1.0</span>
+            </p>
+            <p style={{ margin: '0 0 15px 0' }}>
+              Enterprise Document Automation & Management Platform
+            </p>
+            
+            <div style={{ 
+              marginTop: '15px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '10px',
+              background: '#f8f9fa',
+              padding: '15px',
+              borderRadius: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#666', minWidth: '80px' }}>Backend</span>
+                {backendStatus === "connected" ? (
+                  <span style={{ color: '#28a745', fontWeight: '500' }}>● Online</span>
+                ) : backendStatus === "checking" ? (
+                  <span style={{ color: '#ffc107', fontWeight: '500' }}>⟳ Checking...</span>
+                ) : (
+                  <span style={{ color: '#dc3545', fontWeight: '500' }}>● Offline</span>
+                )}
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#666', minWidth: '80px' }}>Database</span>
+                {dbStatus === "connected" ? (
+                  <span style={{ color: '#28a745', fontWeight: '500' }}>● Connected (SQLite)</span>
+                ) : dbStatus === "checking" ? (
+                  <span style={{ color: '#ffc107', fontWeight: '500' }}>⟳ Checking...</span>
+                ) : (
+                  <span style={{ color: '#dc3545', fontWeight: '500' }}>● Disconnected</span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
